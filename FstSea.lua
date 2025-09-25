@@ -1,8 +1,10 @@
--- Versi Perbaikan dari Script Autofarm Blox Fruits
+-- Versi Perbaikan Lanjutan dari Script Autofarm Blox Fruits
+-- Script ini berusaha lebih cerdas dalam mendeteksi dan berinteraksi dengan NPC
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -18,6 +20,16 @@ local function TweenTo(pos)
     )
     tween:Play()
     tween.Completed:Wait()
+end
+
+-- Fungsi yang lebih baik untuk mencari objek NPC di workspace
+local function FindNPC(npcName)
+    for _, npc in pairs(workspace:GetChildren()) do
+        if npc.Name == npcName and npc:FindFirstChild("HumanoidRootPart") then
+            return npc
+        end
+    end
+    return nil
 end
 
 -- Data Quest (tanpa perubahan)
@@ -41,37 +53,70 @@ local QuestData = {
     {Level = 675, NPC = "Galley Captain [Lv. 650]", Quest = "FountainQuest2", Pos = CFrame.new(5670,38,4936)},
 }
 
--- Logika GetQuest yang diperbaiki untuk mencari quest yang paling sesuai
+-- Logika GetQuest yang diperbaiki
 local function GetQuest()
     local lvl = LocalPlayer.Data.Level.Value
-    for _, quest in ipairs(QuestData) do
-        if lvl < quest.Level then
-            -- Cari quest yang levelnya paling mendekati level saat ini (di bawahnya)
-            -- Misalnya, level 15, akan mencari quest level 10
-            return QuestData[_ - 1]
+    local currentQuest = nil
+    for i = 1, #QuestData do
+        if lvl >= QuestData[i].Level then
+            currentQuest = QuestData[i]
+        else
+            break
         end
     end
-    -- Jika level sudah melebihi semua quest di daftar
-    return QuestData[#QuestData]
+    return currentQuest
 end
 
--- Fungsi untuk mengambil quest yang tidak memanipulasi remote langsung
-local function TakeQuest(q)
-    -- Asumsi interaksi dengan NPC dilakukan secara manual, atau melalui remote yang benar
-    -- Tidak ada cara aman untuk memanggil remote tanpa pengetahuan
-    -- Jadi, kode ini hanya akan memindahkan pemain ke lokasi NPC
-    TweenTo(q.Pos)
-    print("Berhasil pergi ke NPC. Sekarang ambil quest secara manual.")
-end
-
--- Loop AutoFarm yang lebih aman
+-- Loop AutoFarm yang lebih aman dan efisien
 _G.AutoFarm = true
 spawn(function()
     while task.wait(0.5) do
         if not _G.AutoFarm then continue end
 
-        -- Ambil quest yang paling sesuai dengan level pemain
         local q = GetQuest()
+        if not q then continue end
+
+        if not LocalPlayer.PlayerGui.Main.Quest.Visible then
+            -- Cari NPC di game
+            local npc = FindNPC(q.NPC)
+            if npc and (HRP.Position - npc.HumanoidRootPart.Position).Magnitude > 5 then
+                -- Jika NPC ditemukan dan masih jauh, bergerak ke sana
+                TweenTo(npc.HumanoidRootPart.CFrame)
+                print("Bergerak ke NPC: " .. q.NPC)
+            elseif npc then
+                -- Jika sudah dekat, coba interaksi
+                -- Ini adalah bagian paling riskan. Skrip mencoba memicu klik untuk interaksi
+                VirtualUser:CaptureController()
+                VirtualUser:Button1Down(Vector2.new(0, 0))
+                VirtualUser:Button1Up(Vector2.new(0, 0))
+                print("Mencoba berinteraksi dengan NPC...")
+                task.wait(1) -- Beri jeda untuk menunggu menu quest muncul
+            end
+        else
+            for _,mob in pairs(workspace.Enemies:GetChildren()) do
+                if mob.Name == q.NPC and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
+                    -- Skrip hanya akan bergerak ke mob, tidak memindahkan mob
+                    TweenTo(mob.HumanoidRootPart.CFrame * CFrame.new(0,0,5))
+                    
+                    VirtualUser:CaptureController()
+                    VirtualUser:Button1Down(Vector2.new(0, 0))
+                    VirtualUser:Button1Up(Vector2.new(0, 0))
+                    break -- Keluar dari loop setelah menyerang satu mob
+                end
+            end
+        end
+    end
+end)
+
+-- Auto Melee Stat (tidak perlu perbaikan)
+spawn(function()
+    while task.wait(2) do
+        if _G.AutoFarm then
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("AddPoint","Melee",1)
+        end
+    end
+end)
+
         if not q then
             print("Tidak ada quest yang cocok. Menghentikan autofarm.")
             _G.AutoFarm = false
