@@ -1,74 +1,99 @@
---// Services
-local Players = game:GetService("Players")
+-- 🌊 Blox Fruits Autofarm (First Sea Only)
+-- Auto Melee + Auto Stats Melee + BringMob + FloatFarm
+
+repeat wait() until game:IsLoaded()
+local vu = game:GetService("VirtualUser")
+game:GetService("Players").LocalPlayer.Idled:connect(function()
+   vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+   wait(1)
+   vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+end)
+
+local plr = game.Players.LocalPlayer
+local char = plr.Character or plr.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+
+getgenv().AutoFarm = true
+getgenv().AutoStats = true
+
+-- 📌 Daftar Quest First Sea (tanpa Boss)
+local QuestList = {
+    [1]   = {Level=1,   Quest="BanditQuest1",    Npc="Bandit",       CFrame=CFrame.new(1060, 17, 1547)},
+    [2]   = {Level=10,  Quest="QuestNPC2",       Npc="Monkey",       CFrame=CFrame.new(-1612, 37, 152)},
+    [3]   = {Level=30,  Quest="QuestNPC3",       Npc="Pirate",       CFrame=CFrame.new(1034, 73, 3939)},
+    [4]   = {Level=60,  Quest="QuestNPC4",       Npc="Desert Bandit",CFrame=CFrame.new(931, 7, 4484)},
+    [5]   = {Level=90,  Quest="QuestNPC5",       Npc="Snow Bandit",  CFrame=CFrame.new(1176, 105, -1430)},
+    [6]   = {Level=120, Quest="QuestNPC6",       Npc="Chief Petty Officer",CFrame=CFrame.new(3589, 75, -4733)},
+    [7]   = {Level=150, Quest="QuestNPC7",       Npc="Sky Bandit",   CFrame=CFrame.new(-4921, 717, -2622)},
+    [8]   = {Level=190, Quest="QuestNPC8",       Npc="Prisoner",     CFrame=CFrame.new(5300, 1, 474)},
+    [9]   = {Level=250, Quest="QuestNPC9",       Npc="Toga Warrior", CFrame=CFrame.new(-1776, 15, -2765)},
+    [10]  = {Level=300, Quest="QuestNPC10",      Npc="Military Soldier",CFrame=CFrame.new(-4805, 21, 4388)},
+    [11]  = {Level=400, Quest="QuestNPC11",      Npc="Fishman Warrior",CFrame=CFrame.new(61123, 19, 1569)},
+    [12]  = {Level=450, Quest="QuestNPC12",      Npc="God's Guard",  CFrame=CFrame.new(-4698, 845, -1912)},
+    [13]  = {Level=525, Quest="QuestNPC13",      Npc="Galley Pirate",CFrame=CFrame.new(5580, 15, 4934)},
+    [14]  = {Level=625, Quest="QuestNPC14",      Npc="Galley Captain",CFrame=CFrame.new(5649, 39, 4829)},
+    [15]  = {Level=700, Quest="SecondSeaQuest",  Npc="Second Sea",   CFrame=CFrame.new(-1164, 55, 1720)},
+}
+
+-- 📌 Fungsi Tween Teleport
 local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
-
---// Utility
-local function getChar()
-    if not LocalPlayer.Character then
-        LocalPlayer.CharacterAdded:Wait()
-    end
-    return LocalPlayer.Character
-end
-
-local function tpTween(pos, speed)
-    local char = getChar()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    local distance = (hrp.Position - pos).Magnitude
-    local time = distance / speed
-    local tween = TweenService:Create(
-        hrp,
-        TweenInfo.new(time, Enum.EasingStyle.Linear),
-        {CFrame = CFrame.new(pos)}
-    )
+function TP(pos)
+    local tween = TweenService:Create(hrp, TweenInfo.new((hrp.Position - pos.Position).Magnitude/250, Enum.EasingStyle.Linear), {CFrame = pos})
     tween:Play()
     tween.Completed:Wait()
 end
 
-local function autoStats()
-    local points = LocalPlayer.Data.Points.Value
-    if points > 0 then
-        ReplicatedStorage.Remotes.CommF_:InvokeServer("AddPoint", "Melee", points)
-    end
+-- 📌 Fungsi FloatFarm
+function FloatFarm()
+    hrp.Velocity = Vector3.new(0,0,0)
+    hrp.CFrame = hrp.CFrame + Vector3.new(0,15,0)
 end
 
---// Quest Data First Sea (skip boss)
-local QuestData = {
-    {LevelReq = 1, QuestName = "BanditQuest1", NpcName = "Bandit", Pos = Vector3.new(1060, 17, 1547)},
-    {LevelReq = 10, QuestName = "JungleQuest", NpcName = "Monkey", Pos = Vector3.new(-1600, 36, 153)},
-    {LevelReq = 15, QuestName = "JungleQuest", NpcName = "Gorilla", Pos = Vector3.new(-1600, 36, 153)},
-    {LevelReq = 30, QuestName = "BuggyQuest1", NpcName = "Pirate", Pos = Vector3.new(-1100, 14, 3830)},
-    {LevelReq = 60, QuestName = "DesertQuest", NpcName = "Desert Bandit", Pos = Vector3.new(921, 7, 4488)},
-    {LevelReq = 75, QuestName = "DesertQuest", NpcName = "Desert Officer", Pos = Vector3.new(921, 7, 4488)},
-    {LevelReq = 90, QuestName = "SnowQuest", NpcName = "Snow Bandit", Pos = Vector3.new(1389, 87, -1298)},
-    {LevelReq = 105, QuestName = "SnowQuest", NpcName = "Snowman", Pos = Vector3.new(1389, 87, -1298)},
-    {LevelReq = 120, QuestName = "MarineQuest2", NpcName = "Chief Petty Officer", Pos = Vector3.new(-5035, 29, 4325)},
-    {LevelReq = 150, QuestName = "SkyQuest", NpcName = "Sky Bandit", Pos = Vector3.new(-4981, 717, -2620)},
-    {LevelReq = 190, QuestName = "PrisonerQuest", NpcName = "Dangerous Prisoner", Pos = Vector3.new(5300, 1, 474)},
-    {LevelReq = 210, QuestName = "PrisonerQuest", NpcName = "Dangerous Prisoner", Pos = Vector3.new(5300, 1, 474)},
-    {LevelReq = 250, QuestName = "ColosseumQuest", NpcName = "Toga Warrior", Pos = Vector3.new(-1617, 7, -2985)},
-    {LevelReq = 300, QuestName = "MagmaQuest", NpcName = "Military Soldier", Pos = Vector3.new(-5312, 12, 8467)},
-    {LevelReq = 330, QuestName = "MagmaQuest", NpcName = "Military Spy", Pos = Vector3.new(-5312, 12, 8467)},
-    {LevelReq = 375, QuestName = "FishmanQuest", NpcName = "Fishman Warrior", Pos = Vector3.new(61123, 19, 1561)},
-    {LevelReq = 400, QuestName = "FishmanQuest", NpcName = "Fishman Commando", Pos = Vector3.new(61123, 19, 1561)},
-    {LevelReq = 450, QuestName = "SkyExp1Quest", NpcName = "God's Guard", Pos = Vector3.new(-4652, 845, -1775)},
-    {LevelReq = 525, QuestName = "SkyExp2Quest", NpcName = "Royal Squad", Pos = Vector3.new(-7895, 5545, -380)},
-    {LevelReq = 550, QuestName = "SkyExp2Quest", NpcName = "Royal Soldier", Pos = Vector3.new(-7895, 5545, -380)},
-    {LevelReq = 625, QuestName = "FountainQuest", NpcName = "Galley Pirate", Pos = Vector3.new(5730, 38, 3973)},
-    {LevelReq = 650, QuestName = "FountainQuest", NpcName = "Galley Captain", Pos = Vector3.new(5730, 38, 3973)},
-}
-
--- cari quest sesuai level
-local function getQuest(level)
-    local quest
-    for _, q in pairs(QuestData) do
-        if level >= q.LevelReq then
-            quest = q
+-- 📌 Fungsi BringMob
+function BringMob(QuestMobName)
+    for _, v in pairs(workspace.Enemies:GetChildren()) do
+        if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+            if string.find(v.Name, QuestMobName) then
+                v.HumanoidRootPart.CFrame = hrp.CFrame * CFrame.new(0,0,-5)
+                v.HumanoidRootPart.CanCollide = false
+                v.Humanoid.WalkSpeed = 0
+                v.Humanoid.JumpPower = 0
+            end
         end
     end
-    return quest
 end
+
+-- 📌 Auto Stats (Melee Only)
+spawn(function()
+    while getgenv().AutoStats do wait(3)
+        local stat = require(game:GetService("ReplicatedStorage").Stats)
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddPoint", "Melee", 3)
+    end
+end)
+
+-- 📌 AutoFarm
+spawn(function()
+    while getgenv().AutoFarm do wait()
+        local myLevel = plr.Data.Level.Value
+        for i, data in pairs(QuestList) do
+            if myLevel >= data.Level then
+                -- teleport ke NPC Quest
+                TP(data.CFrame)
+                wait(1)
+                -- ambil quest
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", data.Quest, 1)
+                wait(1)
+                -- farming
+                repeat wait()
+                    FloatFarm()
+                    BringMob(data.Npc)
+                    vu:CaptureController()
+                    vu:Button1Down(Vector2.new(1280,672))
+                until not getgenv().AutoFarm or plr.PlayerGui.Main.Quest.Visible == false
+            end
+        end
+    end
+end)end
 
 -- cari musuh
 local function getMob(name)
