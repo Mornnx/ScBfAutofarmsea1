@@ -1,114 +1,121 @@
--- 🌊 Mini Redz-Style Autofarm (First Sea)
--- UI pakai OrionLib
+-- ⚡ Blox Fruits Autofarm (First Sea, Full List, Skip Boss) ⚡
+-- GUI by Kavo UI, AutoFarm, AutoStat (Melee), BringMob, Tween
 
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
-local Window = OrionLib:MakeWindow({Name = "Mini RedzHub First Sea", HidePremium = false, SaveConfig = true, ConfigFolder = "MiniRedz"})
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("⚡ Blox Fruits AutoFarm (First Sea)", "DarkTheme")
 
-local plr = game.Players.LocalPlayer
-local vu = game:GetService("VirtualUser")
-local hrp = plr.Character:WaitForChild("HumanoidRootPart")
-local TweenService = game:GetService("TweenService")
+local Tab = Window:NewTab("AutoFarm")
+local Section = Tab:NewSection("Main Farm")
 
--- Anti AFK
-plr.Idled:Connect(function()
-    vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
-    wait(1)
-    vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+_G.AutoFarm = false
+_G.AutoStats = true
+
+Section:NewToggle("Auto Farm Level", "Farm sesuai level", function(v)
+    _G.AutoFarm = v
+    AutoFarm()
 end)
 
--- Setting
-getgenv().Farm = false
-getgenv().BringMob = true
-getgenv().Weapon = "Melee"
-getgenv().Stats = true
+Section:NewToggle("Auto Stats Melee", "Tambah stat ke Melee", function(v)
+    _G.AutoStats = v
+end)
 
--- Fungsi Tween
-function TP(pos)
-    local tween = TweenService:Create(hrp, TweenInfo.new((hrp.Position - pos.Position).Magnitude/250, Enum.EasingStyle.Linear), {CFrame = pos})
+-- 📌 Full Quest Data (skip boss)
+local QuestData = {
+    {Level = 1,   NPC = "Bandit [Lv. 5]",         QuestName = "BanditQuest1", QuestPos = CFrame.new(1060,17,1547)},
+    {Level = 10,  NPC = "Monkey [Lv. 14]",        QuestName = "JungleQuest",  QuestPos = CFrame.new(-1611,36,152)},
+    {Level = 30,  NPC = "Pirate [Lv. 35]",        QuestName = "BuggyQuest1",  QuestPos = CFrame.new(-1115,14,3939)},
+    {Level = 60,  NPC = "Desert Bandit [Lv. 60]", QuestName = "DesertQuest",  QuestPos = CFrame.new(896,6,4390)},
+    {Level = 90,  NPC = "Snow Bandit [Lv. 90]",   QuestName = "SnowQuest",    QuestPos = CFrame.new(1389,88,-1293)},
+    {Level = 120, NPC = "Chief Petty Officer [Lv. 120]", QuestName = "MarineQuest2", QuestPos = CFrame.new(-5035,29,4325)},
+    {Level = 150, NPC = "Sky Bandit [Lv. 150]",   QuestName = "SkyQuest",     QuestPos = CFrame.new(-4970,278,717)},
+    {Level = 190, NPC = "Dark Master [Lv. 175]",  QuestName = "SkyQuest2",    QuestPos = CFrame.new(-5250,389,-228)},
+    {Level = 220, NPC = "Prisoner [Lv. 190]",     QuestName = "PrisonerQuest",QuestPos = CFrame.new(5308,1,475)},
+    {Level = 250, NPC = "Toga Warrior [Lv. 250]", QuestName = "ColosseumQuest",QuestPos = CFrame.new(-1577,8,-2986)},
+    {Level = 300, NPC = "Military Soldier [Lv. 300]", QuestName = "MagmaQuest",QuestPos = CFrame.new(-5321,11,8467)},
+    {Level = 330, NPC = "Military Spy [Lv. 330]", QuestName = "MagmaQuest",   QuestPos = CFrame.new(-5321,11,8467)},
+    {Level = 370, NPC = "Fishman Warrior [Lv. 375]", QuestName = "FishmanQuest",QuestPos = CFrame.new(61123,19,1569)},
+    {Level = 400, NPC = "Fishman Commando [Lv. 400]", QuestName = "FishmanQuest2",QuestPos = CFrame.new(61891,19,1471)},
+    {Level = 450, NPC = "God's Guard [Lv. 450]",  QuestName = "SkyExp1Quest", QuestPos = CFrame.new(-4698,845,-1912)},
+    {Level = 480, NPC = "Shanda [Lv. 475]",       QuestName = "SkyExp2Quest", QuestPos = CFrame.new(-7685,5567,-502)},
+    {Level = 525, NPC = "Royal Squad [Lv. 525]",  QuestName = "SkyExp2Quest", QuestPos = CFrame.new(-7685,5567,-502)},
+    {Level = 550, NPC = "Royal Soldier [Lv. 550]",QuestName = "SkyExp3Quest", QuestPos = CFrame.new(-7903,5638,-1412)},
+    {Level = 625, NPC = "Galley Pirate [Lv. 625]",QuestName = "FountainQuest",QuestPos = CFrame.new(5242,38,4074)},
+    {Level = 650, NPC = "Galley Captain [Lv. 650]",QuestName = "FountainQuest",QuestPos = CFrame.new(5242,38,4074)},
+}
+
+-- 📌 Ambil quest sesuai level
+function GetQuest()
+    local plr = game.Players.LocalPlayer
+    local lvl = plr.Data.Level.Value
+    local qData = nil
+    for _,q in pairs(QuestData) do
+        if lvl >= q.Level then
+            qData = q
+        end
+    end
+    return qData
+end
+
+-- 📌 Tween function
+function TweenTo(pos)
+    local ts = game:GetService("TweenService")
+    local plr = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not plr then return end
+    local dist = (plr.Position - pos.Position).Magnitude
+    local tween = ts:Create(plr, TweenInfo.new(dist/300, Enum.EasingStyle.Linear), {CFrame = pos})
     tween:Play()
     tween.Completed:Wait()
 end
 
--- Fungsi Float
-function FloatFarm()
-    hrp.Velocity = Vector3.new(0,0,0)
-    hrp.CFrame = hrp.CFrame + Vector3.new(0,15,0)
-end
+-- 📌 AutoFarm loop
+function AutoFarm()
+    spawn(function()
+        while _G.AutoFarm and task.wait() do
+            pcall(function()
+                local q = GetQuest()
+                if not q then return end
+                local plr = game.Players.LocalPlayer
+                local char = plr.Character
+                local hrp = char:WaitForChild("HumanoidRootPart")
 
--- Fungsi BringMob
-function BringMob(mobName)
-    for _, v in pairs(workspace.Enemies:GetChildren()) do
-        if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-            if string.find(v.Name, mobName) then
-                v.HumanoidRootPart.CFrame = hrp.CFrame * CFrame.new(0,0,-5)
-                v.HumanoidRootPart.CanCollide = false
-                v.Humanoid.WalkSpeed = 0
-                v.Humanoid.JumpPower = 0
-            end
+                -- Ambil Quest
+                if not plr.PlayerGui.Main.Quest.Visible then
+                    TweenTo(q.QuestPos)
+                    local args = {"StartQuest", q.QuestName, 1}
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+                else
+                    -- Cari musuh
+                    for _,mob in pairs(workspace.Enemies:GetChildren()) do
+                        if mob.Name == q.NPC and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
+                            mob.HumanoidRootPart.CFrame = hrp.CFrame * CFrame.new(0,0,-5)
+                            mob.HumanoidRootPart.Anchored = false
+                            TweenTo(mob.HumanoidRootPart.CFrame * CFrame.new(0,5,0))
+                            game:GetService("VirtualUser"):CaptureController()
+                            game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0,0))
+                        end
+                    end
+                end
+            end)
         end
-    end
+    end)
 end
 
--- Orion UI Tabs
-local Tab = Window:MakeTab({Name = "Main Farm", Icon = "rbxassetid://4483345998", PremiumOnly = false})
-
-Tab:AddToggle({
-    Name = "Auto Farm",
-    Default = false,
-    Callback = function(v) getgenv().Farm = v end
-})
-
-Tab:AddToggle({
-    Name = "Bring Mob",
-    Default = true,
-    Callback = function(v) getgenv().BringMob = v end
-})
-
-Tab:AddDropdown({
-    Name = "Select Weapon",
-    Default = "Melee",
-    Options = {"Melee", "Sword", "Gun", "Fruit"},
-    Callback = function(v) getgenv().Weapon = v end
-})
-
-Tab:AddToggle({
-    Name = "Auto Stats Melee",
-    Default = true,
-    Callback = function(v) getgenv().Stats = v end
-})
-
--- Farming Loop
+-- 📌 Auto Stat (Melee only)
 spawn(function()
-    while wait() do
-        if getgenv().Farm then
-            local myLevel = plr.Data.Level.Value
-            -- (Cari quest sesuai level → sama kayak script sebelumnya)
-            -- Contoh farming Military Soldier (lvl 300)
-            if myLevel >= 300 and myLevel < 400 then
-                local Quest = "MilitarySoldierQuest"
-                local Mob = "Military Soldier"
-                local Qpos = CFrame.new(-4805, 21, 4388)
-                -- Teleport
-                TP(Qpos)
-                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", Quest, 1)
-                repeat wait()
-                    FloatFarm()
-                    if getgenv().BringMob then BringMob(Mob) end
-                    vu:CaptureController()
-                    vu:Button1Down(Vector2.new(1280,672))
-                until not getgenv().Farm or plr.PlayerGui.Main.Quest.Visible == false
-            end
+    while task.wait(2) do
+        if _G.AutoStats then
+            local args = {"AddPoint","Melee",1}
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
         end
     end
 end)
 
--- Auto Stats
+-- 📌 Anti Fall (floating on water)
 spawn(function()
-    while wait(3) do
-        if getgenv().Stats then
-            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddPoint", "Melee", 3)
+    while task.wait() do
+        local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and hrp.Position.Y < 1 then
+            hrp.Velocity = Vector3.new(0,50,0)
         end
     end
 end)
-
-OrionLib:Init()
