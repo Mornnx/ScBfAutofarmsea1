@@ -6,7 +6,9 @@ local LocalPlayer = Players.LocalPlayer
 
 --// Utility
 local function getChar()
-    if not LocalPlayer.Character then LocalPlayer.CharacterAdded:Wait() end
+    if not LocalPlayer.Character then
+        LocalPlayer.CharacterAdded:Wait()
+    end
     return LocalPlayer.Character
 end
 
@@ -15,7 +17,6 @@ local function tpTween(pos, speed)
     local hrp = char:WaitForChild("HumanoidRootPart")
     local distance = (hrp.Position - pos).Magnitude
     local time = distance / speed
-
     local tween = TweenService:Create(
         hrp,
         TweenInfo.new(time, Enum.EasingStyle.Linear),
@@ -25,7 +26,6 @@ local function tpTween(pos, speed)
     tween.Completed:Wait()
 end
 
---// Auto stat (semua ke melee)
 local function autoStats()
     local points = LocalPlayer.Data.Points.Value
     if points > 0 then
@@ -33,7 +33,7 @@ local function autoStats()
     end
 end
 
---// First Sea Quest Data (skip boss)
+--// Quest Data First Sea (skip boss)
 local QuestData = {
     {LevelReq = 1, QuestName = "BanditQuest1", NpcName = "Bandit", Pos = Vector3.new(1060, 17, 1547)},
     {LevelReq = 10, QuestName = "JungleQuest", NpcName = "Monkey", Pos = Vector3.new(-1600, 36, 153)},
@@ -48,27 +48,64 @@ local QuestData = {
     {LevelReq = 190, QuestName = "PrisonerQuest", NpcName = "Dangerous Prisoner", Pos = Vector3.new(5300, 1, 474)},
     {LevelReq = 210, QuestName = "PrisonerQuest", NpcName = "Dangerous Prisoner", Pos = Vector3.new(5300, 1, 474)},
     {LevelReq = 250, QuestName = "ColosseumQuest", NpcName = "Toga Warrior", Pos = Vector3.new(-1617, 7, -2985)},
-    {LevelReq = 275, QuestName = "ColosseumQuest", NpcName = "Gladiator", Pos = Vector3.new(-1617, 7, -2985)},
-    {LevelReq = 300, QuestName = "MagmaQuest", NpcName = "Military Soldier", Pos = Vector3.new(-5328, 12, 8467)},
-    {LevelReq = 325, QuestName = "MagmaQuest", NpcName = "Military Spy", Pos = Vector3.new(-5328, 12, 8467)},
-    {LevelReq = 375, QuestName = "FishmanQuest", NpcName = "Fishman Warrior", Pos = Vector3.new(61123, 18, 1561)},
-    {LevelReq = 400, QuestName = "FishmanQuest", NpcName = "Fishman Commando", Pos = Vector3.new(61123, 18, 1561)},
-    {LevelReq = 450, QuestName = "SkyExp1Quest", NpcName = "God's Guard", Pos = Vector3.new(-4607, 872, -1667)},
-    {LevelReq = 525, QuestName = "SkyExp1Quest", NpcName = "Shanda", Pos = Vector3.new(-7892, 5545, -382)},
-    {LevelReq = 575, QuestName = "SkyExp2Quest", NpcName = "Royal Squad", Pos = Vector3.new(-7685, 5639, -1440)},
-    {LevelReq = 625, QuestName = "SkyExp2Quest", NpcName = "Royal Soldier", Pos = Vector3.new(-7868, 5636, -380)},
-    {LevelReq = 675, QuestName = "FountainQuest", NpcName = "Galley Pirate", Pos = Vector3.new(5231, 38, 4054)},
-    {LevelReq = 700, QuestName = "FountainQuest", NpcName = "Galley Captain", Pos = Vector3.new(5231, 38, 4054)},
+    {LevelReq = 300, QuestName = "MagmaQuest", NpcName = "Military Soldier", Pos = Vector3.new(-5312, 12, 8467)},
+    {LevelReq = 330, QuestName = "MagmaQuest", NpcName = "Military Spy", Pos = Vector3.new(-5312, 12, 8467)},
+    {LevelReq = 375, QuestName = "FishmanQuest", NpcName = "Fishman Warrior", Pos = Vector3.new(61123, 19, 1561)},
+    {LevelReq = 400, QuestName = "FishmanQuest", NpcName = "Fishman Commando", Pos = Vector3.new(61123, 19, 1561)},
+    {LevelReq = 450, QuestName = "SkyExp1Quest", NpcName = "God's Guard", Pos = Vector3.new(-4652, 845, -1775)},
+    {LevelReq = 525, QuestName = "SkyExp2Quest", NpcName = "Royal Squad", Pos = Vector3.new(-7895, 5545, -380)},
+    {LevelReq = 550, QuestName = "SkyExp2Quest", NpcName = "Royal Soldier", Pos = Vector3.new(-7895, 5545, -380)},
+    {LevelReq = 625, QuestName = "FountainQuest", NpcName = "Galley Pirate", Pos = Vector3.new(5730, 38, 3973)},
+    {LevelReq = 650, QuestName = "FountainQuest", NpcName = "Galley Captain", Pos = Vector3.new(5730, 38, 3973)},
 }
 
---// Cari quest sesuai level
-local function getQuest()
-    local myLevel = LocalPlayer.Data.Level.Value
-    local bestQuest
+-- cari quest sesuai level
+local function getQuest(level)
+    local quest
     for _, q in pairs(QuestData) do
-        if myLevel >= q.LevelReq then
-            bestQuest = q
+        if level >= q.LevelReq then
+            quest = q
         end
+    end
+    return quest
+end
+
+-- cari musuh
+local function getMob(name)
+    for _, mob in pairs(workspace.Enemies:GetChildren()) do
+        if mob.Name == name and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+            return mob
+        end
+    end
+    return nil
+end
+
+-- farming loop
+spawn(function()
+    while task.wait() do
+        pcall(function()
+            autoStats()
+            local level = LocalPlayer.Data.Level.Value
+            if level >= 700 then return end -- stop di level 700
+            local quest = getQuest(level)
+            if quest then
+                -- ambil quest
+                tpTween(quest.Pos, 200)
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", quest.QuestName, quest.NpcName)
+
+                -- lawan musuh
+                local mob = getMob(quest.NpcName)
+                if mob then
+                    repeat
+                        tpTween(mob.HumanoidRootPart.Position + Vector3.new(0, 5, 0), 300)
+                        ReplicatedStorage.Remotes.CommF_:InvokeServer("Attack", true)
+                        task.wait(0.1)
+                    until not mob or mob.Humanoid.Health <= 0
+                end
+            end
+        end)
+    end
+end)        end
     end
     return bestQuest
 end
